@@ -75,6 +75,14 @@
   max-width: 600px;
 }
 
+/* Button container */
+.button-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 /* Call-to-action button */
 .start-button {
   background: linear-gradient(to bottom, var(--light-yellow), var(--lime-green));
@@ -95,6 +103,28 @@
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   background: linear-gradient(to bottom, var(--lime-green), var(--light-teal));
+}
+
+/* Info button */
+.info-button {
+  background: var(--light-gray);
+  color: var(--black);
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: var(--dark-teal);
+  color: var(--white);
 }
 
 /* Responsive adjustments */
@@ -120,5 +150,10 @@
   .start-button {
     font-size: 1.25rem;
     padding: 1rem 2rem;
+  }
+  
+  .info-button {
+    font-size: 1rem;
+    padding: 0.8rem 1.5rem;
   }
 } 
