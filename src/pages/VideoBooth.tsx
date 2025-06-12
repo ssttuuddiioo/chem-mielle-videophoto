@@ -6,7 +6,6 @@ import { saveVideo } from '../utils/fileUtils';
 import './VideoBooth.css';
 
 const MIN_RECORDING_DURATION = 5;
-const MAX_RECORDING_DURATION = 20;
 
 const VideoBooth = () => {
   const navigate = useNavigate();
