@@ -6,7 +6,6 @@ interface AppSettings {
   maxRecordingDuration: number;
 
   // Photo settings
-  photoCount: number;
   countdownDuration: number;
   pauseBetweenPhotos: number;
 
@@ -17,6 +16,9 @@ interface AppSettings {
   
   // Overlay settings
   stripOverlay: string | null; // A base64 data URL for the overlay image
+
+  // File System settings
+  directoryHandle: FileSystemDirectoryHandle | null;
 }
 
 // Define the shape of the context value
@@ -28,13 +30,13 @@ interface SettingsContextType {
 // Default settings
 const defaultSettings: AppSettings = {
   maxRecordingDuration: 20,
-  photoCount: 4,
   countdownDuration: 3,
   pauseBetweenPhotos: 1500, // in ms
   contrast: 140, // as a percentage
   brightness: 110, // as a percentage
   grain: 60, // alpha value for grain, 0-255
   stripOverlay: null,
+  directoryHandle: null,
 };
 
 // Create the context

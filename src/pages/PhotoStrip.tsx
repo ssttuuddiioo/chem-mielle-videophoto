@@ -5,16 +5,29 @@ import { useSettings } from '../context/SettingsContext';
 import { savePhotoStrip } from '../utils/fileUtils';
 import './PhotoStrip.css';
 
+const PHOTO_COUNT = 3; // Taking 3 photos now
+
+const ProgressIndicator = ({ currentStep, totalSteps }: { currentStep: number, totalSteps: number }) => {
+  return (
+    <div className="progress-indicator">
+      {Array.from({ length: totalSteps }).map((_, index) => (
+        <div key={index} className={`progress-circle ${index < currentStep ? 'filled' : ''}`}>
+          {index + 1}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const PhotoStrip = () => {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
-  const { settings } = useSettings(); // Use settings from context
+  const { settings } = useSettings();
   const [photos, setPhotos] = useState<string[]>([]);
-  const [countdown, setCountdown] = useState<number | null>(null); // Use null for inactive
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
-  const [isTakingPhoto, setIsTakingPhoto] = useState(false);
-  const [status, setStatus] = useState("Get Ready to Pose!");
+  const [status, setStatus] = useState("Get Ready..."); // Will only be "SMILE!" or countdown
   const [flashWhite, setFlashWhite] = useState(false);
 
   const capturePhoto = useCallback(() => {
@@ -29,21 +42,9 @@ const PhotoStrip = () => {
     }
   }, [webcamRef]);
 
-  const startPhotoSequence = useCallback(() => {
-    if (isTakingPhoto) return;
-    
-    setPhotos([]);
-    setShowPreview(false);
-    setIsTakingPhoto(true);
-    setStatus("Get Ready...");
-    setCountdown(settings.countdownDuration); // Use setting
-  }, [isTakingPhoto, settings.countdownDuration]);
-
-  // This effect handles the countdown itself. It does NOT depend on photos.length.
+  // This effect handles the countdown itself.
   useEffect(() => {
-    if (countdown === null || !isTakingPhoto) {
-      return;
-    }
+    if (countdown === null) return;
 
     if (countdown > 0) {
       setStatus(`Get Ready... ${countdown}`);
@@ -55,52 +56,46 @@ const PhotoStrip = () => {
     
     if (countdown === 0) {
       setStatus("SMILE!");
-      // Deactivate countdown to prevent re-triggering before capturing
       setCountdown(null);
       setTimeout(() => {
         capturePhoto();
       }, 500);
     }
-  }, [countdown, isTakingPhoto, capturePhoto]);
+  }, [countdown, capturePhoto]);
 
-  // This effect reacts ONLY to new photos being added.
+  // This effect reacts to new photos being added.
   useEffect(() => {
-    if (photos.length === 0 || !isTakingPhoto) {
-      return;
-    }
-
-    if (photos.length < settings.photoCount) { // Use setting
-      setStatus(`Great! Photo ${photos.length} of ${settings.photoCount} done.`);
+    if (photos.length > 0 && photos.length < PHOTO_COUNT) {
       const timer = setTimeout(() => {
-        setCountdown(settings.countdownDuration); // Use setting
-      }, settings.pauseBetweenPhotos); // Use setting
+        setCountdown(settings.countdownDuration);
+      }, settings.pauseBetweenPhotos);
       return () => clearTimeout(timer);
     } 
     
-    if (photos.length === settings.photoCount) { // Use setting
+    if (photos.length === PHOTO_COUNT) {
       setStatus("All done! Here's your strip.");
-      setIsTakingPhoto(false);
       setTimeout(() => {
         setShowPreview(true);
       }, 1000);
     }
-  }, [photos, isTakingPhoto, settings]); // Depend on settings object
+  }, [photos, settings]);
+
+  // Start the sequence automatically on mount
+  useEffect(() => {
+    setCountdown(settings.countdownDuration);
+  }, [settings.countdownDuration]);
 
   const handleRetake = () => {
     setPhotos([]);
     setShowPreview(false);
     setShowThankYou(false);
-    setIsTakingPhoto(false);
-    setCountdown(null);
-    setStatus("Get Ready to Pose!");
+    setCountdown(settings.countdownDuration);
+    setStatus("Get Ready...");
   };
 
   const handlePrint = async () => {
     try {
-      // Create and save the single photo strip file with current settings
       await savePhotoStrip(photos, settings);
-      
-      // For now, just show the thank you screen
       setShowPreview(false);
       setShowThankYou(true);
     } catch (error) {
@@ -113,10 +108,7 @@ const PhotoStrip = () => {
       <div className="photo-body">
         <div className="thank-you-container">
           <h1 className="thank-you-title">Enjoy your photos!</h1>
-          <button
-            onClick={() => navigate('/')}
-            className="photo-button"
-          >
+          <button onClick={() => navigate('/')} className="photo-button">
             Start Over
           </button>
         </div>
@@ -129,31 +121,43 @@ const PhotoStrip = () => {
       <div className="photo-body">
         <div className="strip-preview-container">
           <h1 className="strip-preview-title">Your Photo Strip</h1>
-          <div className="photo-strip">
-            <div className="photo-strip-images">
-              {photos.map((photo, index) => (
-                <img
-                  key={index}
-                  src={photo}
-                  alt={`Photo ${index + 1}`}
-                  className="strip-photo"
-                />
-              ))}
-            </div>
-          </div>
+          <canvas 
+            ref={canvas => {
+              if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                
+                const scale = 0.4; // Render preview at 40% of full size
+                canvas.width = 600 * scale;
+                canvas.height = 1800 * scale;
+
+                ctx.fillStyle = '#f8bbd0';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const padding = 30 * scale;
+                const photoSectionHeight = ((1800 - 450) / 3) * scale;
+
+                photos.forEach((photoSrc, i) => {
+                  const img = new Image();
+                  img.onload = () => {
+                    const photoY = i * photoSectionHeight + padding;
+                    const photoWidth = canvas.width - padding * 2;
+                    const photoHeight = photoSectionHeight - padding * 2;
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(padding, photoY, photoWidth, photoHeight);
+
+                    ctx.drawImage(img, padding, photoY, photoWidth, photoHeight);
+                  };
+                  img.src = photoSrc;
+                });
+              }
+            }} 
+            className="photo-strip-canvas-preview"
+          ></canvas>
           <div className="button-group">
-            <button
-              onClick={handleRetake}
-              className="secondary-button"
-            >
-              Retake
-            </button>
-            <button
-              onClick={handlePrint}
-              className="photo-button"
-            >
-              Print Strip
-            </button>
+            <button onClick={handleRetake} className="secondary-button">Retake</button>
+            <button onClick={handlePrint} className="photo-button">Print Strip</button>
           </div>
         </div>
       </div>
@@ -163,34 +167,21 @@ const PhotoStrip = () => {
   return (
     <div className="photo-body">
       <div className="photo-container">
-        <h1 className="status-text">{status}</h1>
+        <ProgressIndicator currentStep={photos.length} totalSteps={PHOTO_COUNT} />
         <div className="camera-screen">
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            screenshotFormat="image/jpeg"
-            className="webcam"
-          />
-          {countdown !== null && (
+          <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" className="webcam" />
+          {countdown !== null && countdown > 0 && (
             <div className="countdown-overlay">
               <span>{countdown}</span>
             </div>
           )}
-          {flashWhite && (
-            <div className="flash-overlay"></div>
+          {countdown === 0 && (
+             <div className="countdown-overlay">
+              <span>{status}</span>
+            </div>
           )}
+          {flashWhite && <div className="flash-overlay"></div>}
         </div>
-        
-        <button
-          onClick={startPhotoSequence}
-          disabled={isTakingPhoto || photos.length === settings.photoCount} // Use setting
-          className="photo-button"
-        >
-          {photos.length === 0 && !isTakingPhoto ? 'Start' : 
-           isTakingPhoto ? 'Taking Photos...' : 
-           photos.length === settings.photoCount ? 'Complete!' : // Use setting
-           'Continue'}
-        </button>
       </div>
     </div>
   );

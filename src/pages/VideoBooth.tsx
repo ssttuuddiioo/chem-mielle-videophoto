@@ -13,29 +13,33 @@ const VideoBooth = () => {
   const { settings } = useSettings();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [showThankYou, setShowThankYou] = useState(false);
   const [status, setStatus] = useState("Get Ready...");
 
   const startRecording = useCallback(() => {
-    setStatus("Recording...");
-    if (webcamRef.current && webcamRef.current.stream) {
-      mediaRecorderRef.current = new MediaRecorder(webcamRef.current.stream, {
-        mimeType: 'video/mp4',
-        videoBitsPerSecond: 2500000
-      });
-      mediaRecorderRef.current.addEventListener('dataavailable', (event) => {
+    if (webcamRef.current?.stream) {
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      const stream = webcamRef.current.stream;
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      
+      const recordedChunks: Blob[] = [];
+
+      mediaRecorder.addEventListener('dataavailable', (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
+          recordedChunks.push(event.data);
         }
       });
-      mediaRecorderRef.current.addEventListener('stop', async () => {
-        setIsRecording(false);
+
+      mediaRecorder.addEventListener('stop', async () => {
+        const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
         try {
-          const videoBlob = new Blob(recordedChunks, { type: 'video/mp4' });
-          await saveVideo(videoBlob);
+          await saveVideo(videoBlob, settings.directoryHandle);
           setStatus("Saved!");
           setShowThankYou(true);
         } catch (error) {
@@ -43,54 +47,55 @@ const VideoBooth = () => {
           setStatus("Error!");
         }
       });
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-    }
-  }, [recordedChunks]);
-  
-  // Start countdown on component mount
-  useEffect(() => {
-    setCountdown(3);
-    const countdownInterval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval);
-          startRecording();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [startRecording]);
 
-  const handleStopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorder.start();
+    }
+  }, [settings.directoryHandle]);
+
+  const stopRecording = useCallback(async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
-  }, [isRecording]);
+  }, []);
 
-  const handleStartPhotos = () => {
-    navigate('/photo-strip');
-  };
-
+  // Countdown logic
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    if (countdown === null) return;
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+    if (countdown === 0) {
+      startRecording();
+      setCountdown(null);
+    }
+  }, [countdown, startRecording]);
+
+  // Recording timer logic
+  useEffect(() => {
     if (isRecording) {
-      timer = setInterval(() => {
-        setRecordingTime((prev) => {
-          if (prev >= settings.maxRecordingDuration) {
-            handleStopRecording();
-            return prev;
+      const timer = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= settings.maxRecordingDuration -1) {
+            stopRecording();
+            return prev + 1;
           }
           return prev + 1;
         });
       }, 1000);
+      return () => clearInterval(timer);
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [isRecording, handleStopRecording, settings.maxRecordingDuration]);
+  }, [isRecording, settings.maxRecordingDuration, stopRecording]);
+
+  // Initial countdown trigger
+  useEffect(() => {
+    setCountdown(3);
+  }, []);
+
+  const handleStartPhotos = () => {
+    navigate('/photo-strip');
+  };
 
   if (showThankYou) {
     return (
@@ -116,7 +121,7 @@ const VideoBooth = () => {
             audio={true}
             className="webcam"
           />
-          {countdown > 0 && (
+          {countdown !== null && (
             <div className="countdown-overlay">
               {countdown}
             </div>
@@ -136,7 +141,7 @@ const VideoBooth = () => {
         </div>
         
         <button
-          onClick={handleStopRecording}
+          onClick={stopRecording}
           disabled={!isRecording || recordingTime < MIN_RECORDING_DURATION}
           className="video-button"
         >

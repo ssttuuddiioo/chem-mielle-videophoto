@@ -31,6 +31,17 @@ const SettingsPage = () => {
     setLocalSettings(settings);
   };
 
+  const handleSelectDirectory = async () => {
+    try {
+      // @ts-ignore
+      const handle = await window.showDirectoryPicker();
+      setLocalSettings(prev => ({ ...prev, directoryHandle: handle }));
+    } catch (error) {
+      console.error('Error selecting directory:', error);
+      alert('Could not select directory. This feature may not be supported in your browser.');
+    }
+  };
+
   const handleOverlayUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -120,7 +131,20 @@ const SettingsPage = () => {
         <div className="settings-grid">
           {/* Settings Controls */}
           <div className="settings-controls">
-            <h2>Photo Filters</h2>
+            <h2>File Saving</h2>
+            <div className="setting-item">
+              <label>Save Location</label>
+              <button className="select-directory-button" onClick={handleSelectDirectory}>
+                Choose Save Folder
+              </button>
+              {localSettings.directoryHandle && (
+                <p className="directory-name">
+                  Saving to: <strong>{localSettings.directoryHandle.name}</strong>
+                </p>
+              )}
+            </div>
+
+            <h2 className="mt-4">Photo Filters</h2>
             <div className="setting-item">
               <label>Contrast: {localSettings.contrast}%</label>
               <input type="range" name="contrast" min="100" max="200" value={localSettings.contrast} onChange={handleSettingChange} />
@@ -141,10 +165,6 @@ const SettingsPage = () => {
             </div>
 
             <h2 className="mt-4">Photo Sequence</h2>
-             <div className="setting-item">
-              <label>Number of Photos: {localSettings.photoCount}</label>
-              <input type="range" name="photoCount" min="1" max="8" value={localSettings.photoCount} onChange={handleSettingChange} />
-            </div>
              <div className="setting-item">
               <label>Countdown (sec): {localSettings.countdownDuration}</label>
               <input type="range" name="countdownDuration" min="1" max="10" value={localSettings.countdownDuration} onChange={handleSettingChange} />

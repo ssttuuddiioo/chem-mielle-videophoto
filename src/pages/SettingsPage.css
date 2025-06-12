@@ -64,6 +64,32 @@
   transform: translateY(-2px);
 }
 
+.select-directory-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #334155;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.select-directory-button:hover {
+  background-color: #475569;
+}
+
+.directory-name {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  background-color: #e0f2fe;
+  color: #0c4a6e;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  text-align: center;
+}
+
 .settings-container h1 {
   font-size: 2.5rem;
   font-weight: bold;
