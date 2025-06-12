@@ -1,6 +1,24 @@
+// Detect Electron preload bridge
+declare global {
+  interface Window {
+    electronAPI?: {
+      saveVideo: (buffer: ArrayBuffer, fileName: string) => Promise<string>;
+      savePhotoStrip: (dataUrl: string, fileName: string) => Promise<string>;
+      printPhotoStrip: (filePath: string) => Promise<void>;
+    };
+  }
+}
+
 export const saveVideo = async (blob: Blob, directoryHandle: FileSystemDirectoryHandle | null): Promise<string> => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const fileName = `video-${timestamp}.webm`;
+  
+  // Route to Electron main process if available
+  if (window.electronAPI) {
+    const buffer = await blob.arrayBuffer();
+    await window.electronAPI.saveVideo(buffer, fileName);
+    return fileName;
+  }
   
   try {
     // Try to save silently with the File System Access API
@@ -164,6 +182,13 @@ export const savePhotoStrip = async (
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `photo-strip-${timestamp}.png`;
     
+    // If running inside Electron, let main process handle save & print silently
+    if (window.electronAPI) {
+      const filePath = await window.electronAPI.savePhotoStrip(canvas.toDataURL('image/png'), fileName);
+      await window.electronAPI.printPhotoStrip(filePath);
+      return fileName;
+    }
+
     try {
       // Try to save silently with the File System Access API
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
