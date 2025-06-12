@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
+import { useSettings } from '../context/SettingsContext';
 import { savePhotoStrip } from '../utils/fileUtils';
 import './PhotoStrip.css';
 
 const PhotoStrip = () => {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
+  const { settings } = useSettings(); // Use settings from context
   const [photos, setPhotos] = useState<string[]>([]);
   const [countdown, setCountdown] = useState<number | null>(null); // Use null for inactive
   const [showPreview, setShowPreview] = useState(false);
@@ -34,8 +36,8 @@ const PhotoStrip = () => {
     setShowPreview(false);
     setIsTakingPhoto(true);
     setStatus("Get Ready...");
-    setCountdown(3);
-  }, [isTakingPhoto]);
+    setCountdown(settings.countdownDuration); // Use setting
+  }, [isTakingPhoto, settings.countdownDuration]);
 
   // This effect handles the countdown itself. It does NOT depend on photos.length.
   useEffect(() => {
@@ -67,22 +69,22 @@ const PhotoStrip = () => {
       return;
     }
 
-    if (photos.length < 4) {
-      setStatus(`Great! Photo ${photos.length} of 4 done.`);
+    if (photos.length < settings.photoCount) { // Use setting
+      setStatus(`Great! Photo ${photos.length} of ${settings.photoCount} done.`);
       const timer = setTimeout(() => {
-        setCountdown(3); // Start the next countdown
-      }, 1500);
+        setCountdown(settings.countdownDuration); // Use setting
+      }, settings.pauseBetweenPhotos); // Use setting
       return () => clearTimeout(timer);
     } 
     
-    if (photos.length === 4) {
+    if (photos.length === settings.photoCount) { // Use setting
       setStatus("All done! Here's your strip.");
       setIsTakingPhoto(false);
       setTimeout(() => {
         setShowPreview(true);
       }, 1000);
     }
-  }, [photos, isTakingPhoto]); // Depend on the whole array to ensure it runs on change
+  }, [photos, isTakingPhoto, settings]); // Depend on settings object
 
   const handleRetake = () => {
     setPhotos([]);
@@ -95,8 +97,8 @@ const PhotoStrip = () => {
 
   const handlePrint = async () => {
     try {
-      // Create and save the single photo strip file
-      await savePhotoStrip(photos);
+      // Create and save the single photo strip file with current settings
+      await savePhotoStrip(photos, settings);
       
       // For now, just show the thank you screen
       setShowPreview(false);
@@ -181,12 +183,12 @@ const PhotoStrip = () => {
         
         <button
           onClick={startPhotoSequence}
-          disabled={isTakingPhoto || photos.length === 4}
+          disabled={isTakingPhoto || photos.length === settings.photoCount} // Use setting
           className="photo-button"
         >
           {photos.length === 0 && !isTakingPhoto ? 'Start' : 
            isTakingPhoto ? 'Taking Photos...' : 
-           photos.length === 4 ? 'Complete!' : 
+           photos.length === settings.photoCount ? 'Complete!' : // Use setting
            'Continue'}
         </button>
       </div>

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
+import { useSettings } from '../context/SettingsContext';
 import { saveVideo } from '../utils/fileUtils';
 import './VideoBooth.css';
 
@@ -10,6 +11,7 @@ const MAX_RECORDING_DURATION = 20;
 const VideoBooth = () => {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
+  const { settings } = useSettings();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -78,7 +80,7 @@ const VideoBooth = () => {
     if (isRecording) {
       timer = setInterval(() => {
         setRecordingTime((prev) => {
-          if (prev >= MAX_RECORDING_DURATION) {
+          if (prev >= settings.maxRecordingDuration) {
             handleStopRecording();
             return prev;
           }
@@ -89,7 +91,7 @@ const VideoBooth = () => {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isRecording, handleStopRecording]);
+  }, [isRecording, handleStopRecording, settings.maxRecordingDuration]);
 
   if (showThankYou) {
     return (
@@ -126,7 +128,7 @@ const VideoBooth = () => {
                 <div
                   className="progress-fill"
                   style={{
-                    width: `${(recordingTime / MAX_RECORDING_DURATION) * 100}%`,
+                    width: `${(recordingTime / settings.maxRecordingDuration) * 100}%`,
                   }}
                 />
               </div>
