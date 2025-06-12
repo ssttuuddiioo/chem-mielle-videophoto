@@ -15,7 +15,6 @@ const VideoBooth = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [showThankYou, setShowThankYou] = useState(false);
   const [status, setStatus] = useState("Get Ready...");
 
@@ -29,7 +28,7 @@ const VideoBooth = () => {
       mediaRecorderRef.current = mediaRecorder;
       
       const recordedChunks: Blob[] = [];
-
+      
       mediaRecorder.addEventListener('dataavailable', (event) => {
         if (event.data.size > 0) {
           recordedChunks.push(event.data);
